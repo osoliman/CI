@@ -97,7 +97,7 @@ output$mean_y <- renderPrint({
         req(myData())
         df <- myData()
         df1 <- df[,input$y_input]
-        mean(df1, na.omit = T)
+        mean(df1, na.rm = TRUE)
       })
 
 lmModel <- reactive({
