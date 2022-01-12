@@ -33,18 +33,24 @@ ui <- shinyUI(fluidPage(
   ),
 
 mainPanel (
-      h2('Descriptive stats'),
+      h2('Preview of the uploaded data'),
       tableOutput("Sample_content"),
+      
       h4('mean of the selected outcome'),
       verbatimTextOutput("mean_y"),
+      
       h4('Summary of the regression model'),
-      verbatimTextOutput("lmSummary")
+      verbatimTextOutput("lmSummary"),
+      
+      h4('Mean Outcome in Treated group'),
+      verbatimTextOutput("Mean_treated"),
+      
+      h4('Mean Outcome in Control (untreated) group'),
+      verbatimTextOutput("Mean_control")
   )
 
 ))
 
-
-library(shiny)
 
 server <- shinyServer(function(input, output, session) {
 
@@ -100,13 +106,19 @@ output$mean_y <- renderPrint({
         mean(df1, na.rm = TRUE)
       })
 
+newdf2 <- reactive({
+    req(myData())
+    newdf <- myData()
+    #Creating a new dataframe based on the input, then use that new dataset to run the model
+    y <- newdf[,input$y_input]
+    x <- newdf[,input$x_input]
+    Treatment <- newdf[,input$t_input]
+    newdf2 <- data.frame(y,x,Treatment)
+    return(newdf2)
+    })
+
 lmModel <- reactive({
-    req(myData(),input$x_input,input$y_input)
-    x <- as.numeric(myData()[[as.name(input$x_input)]])
-    y <- as.numeric(myData()[[as.name(input$y_input)]])
-    current_formula <- paste0(input$y_input, " ~ ", paste0(input$x_input, collapse = " + "))
-    current_formula <- as.formula(current_formula)
-    model <- lm(current_formula, data = myData(), na.action=na.exclude)
+    model <- lm(y ~., data = newdf2(), na.action=na.exclude)
     return(model)
   })
 
@@ -114,6 +126,17 @@ lmModel <- reactive({
     req(lmModel())
     summary(lmModel())[4]
   })
+
+
+output$Mean_treated <- renderPrint({
+     req(lmModel()) 
+     mean(predict(lmModel(), newdata = subset(newdf2(),Treatment == 1)), na.rm = TRUE)
+   })
+
+output$Mean_control <- renderPrint({
+     req(lmModel()) 
+     mean(predict(lmModel(), newdata = subset(newdf2(),Treatment == 0)), na.rm = TRUE)
+   })
 
 })
 
